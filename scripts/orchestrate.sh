@@ -200,17 +200,19 @@ keyword_match() {
     return 1
 }
 
-resolve_category() {
+resolve_category_contract() {
     local raw_prompt="$1"
     local command_surface="${2:-}"
     local explicit_command="${3:-false}"
-    local prompt_lc category
+    local prompt_lc category reason
     prompt_lc="$(printf '%s' "$raw_prompt" | tr '[:upper:]' '[:lower:]')"
 
     if [[ "$explicit_command" == "true" ]]; then
         case "$command_surface" in
             implementation|research|verification|security|debate|documentation|planning)
-                printf '%s\n' "$command_surface"
+                cat <<EOF
+{"category":"$command_surface","reason":"The explicit command surface mapped directly to the ${command_surface} category."}
+EOF
                 return 0
                 ;;
         esac
@@ -218,21 +220,37 @@ resolve_category() {
 
     if keyword_match "$prompt_lc" "plan" "roadmap" "spec" "requirements"; then
         category="planning"
+        reason="The prompt matched planning-oriented keywords such as plan, roadmap, spec, or requirements."
     elif keyword_match "$prompt_lc" "readme" "docs" "documentation" "write docs" "release notes" "notes" "changelog"; then
         category="documentation"
+        reason="The prompt matched documentation-oriented keywords such as docs, release notes, or changelog."
     elif keyword_match "$prompt_lc" "debate" "argue" "compare options" "tradeoff"; then
         category="debate"
+        reason="The prompt matched debate-oriented keywords such as debate, compare options, or tradeoff."
     elif keyword_match "$prompt_lc" "security" "vulnerability" "audit" "auth" "permission"; then
         category="security"
+        reason="The prompt matched security-oriented keywords such as security, vulnerability, audit, auth, or permission."
     elif keyword_match "$prompt_lc" "verify" "validation" "review" "test" "check"; then
         category="verification"
+        reason="The prompt matched verification-oriented keywords such as verify, review, test, or check."
     elif keyword_match "$prompt_lc" "research" "investigate" "explore" "survey"; then
         category="research"
+        reason="The prompt matched research-oriented keywords such as research, investigate, explore, or survey."
     else
         category="implementation"
+        reason="No stronger category signal was found, so the request defaulted to implementation."
     fi
 
-    printf '%s\n' "$category"
+    cat <<EOF
+{"category":"$category","reason":$(json_escape "$reason")}
+EOF
+}
+
+resolve_category() {
+    local raw_prompt="$1"
+    local command_surface="${2:-}"
+    local explicit_command="${3:-false}"
+    jq -r '.category' <<<"$(resolve_category_contract "$raw_prompt" "$command_surface" "$explicit_command")"
 }
 
 intent_default_category() {
@@ -321,12 +339,15 @@ intent_bundle_with_normalized_categories() {
       | .intents = (
           .intents
           | sort_by(.order)
-          | map(.category = (
-              if (.category == "implementation" or .category == "research" or .category == "verification" or .category == "security" or .category == "debate" or .category == "documentation" or .category == "planning")
-              then .category
-              else $default_category
-              end
-            ))
+          | map(
+              .category = (
+                if (.category == "implementation" or .category == "research" or .category == "verification" or .category == "security" or .category == "debate" or .category == "documentation" or .category == "planning")
+                then .category
+                else $default_category
+                end
+              )
+              | .category_reason = (.category_reason // ("Claude assigned this intent to " + .category + " within the inferred higher-order purpose."))
+            )
         )
     ' <<<"$bundle_json"
 }
@@ -416,15 +437,21 @@ mode_reason() {
 render_summary() {
     local mode="$1"
     local category="$2"
-    local executor_surface="$3"
-    local cleaned_prompt="$4"
-    local quota_json="$5"
-    local policy_json="$6"
+    local category_reason="$3"
+    local executor_surface="$4"
+    local cleaned_prompt="$5"
+    local quota_json="$6"
+    local policy_json="$7"
     local claude_source gemini_source truth_source claude_reason gemini_reason fallback_reason
+    local claude_hourly claude_weekly gemini_hourly gemini_weekly
     claude_source="$(jq -r '.claude.source' <<<"$quota_json")"
     gemini_source="$(jq -r '.gemini.source' <<<"$quota_json")"
     claude_reason="$(jq -r '.claude.fallback_reason // empty' <<<"$quota_json")"
     gemini_reason="$(jq -r '.gemini.fallback_reason // empty' <<<"$quota_json")"
+    claude_hourly="$(jq -r '.claude.hourly_used // "n/a"' <<<"$quota_json")"
+    claude_weekly="$(jq -r '.claude.weekly_used // "n/a"' <<<"$quota_json")"
+    gemini_hourly="$(jq -r '.gemini.hourly_used // "n/a"' <<<"$quota_json")"
+    gemini_weekly="$(jq -r '.gemini.weekly_used // "n/a"' <<<"$quota_json")"
     if [[ "$claude_source" == "$gemini_source" ]]; then
         truth_source="$claude_source"
     else
@@ -443,11 +470,15 @@ render_summary() {
     fi
     printf 'Mode: %s\n' "$mode"
     printf 'Category: %s\n' "$category"
-    printf 'Truth source: %s\n' "$truth_source"
-    printf 'Fallback reason: %s\n' "$fallback_reason"
+    printf 'Category reason: %s\n' "$category_reason"
+    printf 'Current usage:\n'
+    printf '  - Claude: %s / %s\n' "$claude_hourly" "$claude_weekly"
+    printf '  - Gemini: %s / %s\n' "$gemini_hourly" "$gemini_weekly"
     printf 'Executor: %s\n' "$executor_surface"
     printf 'Prompt: %s\n' "$cleaned_prompt"
     printf 'Reason: %s' "$(mode_reason "$mode" "$quota_json")"
+    printf 'Truth source: %s\n' "$truth_source"
+    printf 'Fallback reason: %s\n' "$fallback_reason"
     printf 'Policy: %s\n' "$policy_json"
     printf 'Quota: %s\n' "$quota_json"
 }
@@ -493,15 +524,16 @@ run_intent() {
     local mode="$1"
     local quota_json="$2"
     local intent_json="$3"
-    local category intent_text policy_json executor_surface
+    local category intent_text policy_json executor_surface category_reason
 
     category="$(jq -r '.category' <<<"$intent_json")"
     intent_text="$(jq -r '.intent' <<<"$intent_json")"
+    category_reason="$(jq -r '.category_reason // ("This intent was normalized into the " + .category + " category.")' <<<"$intent_json")"
     policy_json="$(category_policy "$category")"
     executor_surface="$(resolve_executor_surface "$category" "$policy_json" "$quota_json" "$mode")"
 
     printf '\n--- Intent %s ---\n' "$(jq -r '.order' <<<"$intent_json")"
-    render_summary "$mode" "$category" "$executor_surface" "$intent_text" "$quota_json" "$policy_json"
+    render_summary "$mode" "$category" "$category_reason" "$executor_surface" "$intent_text" "$quota_json" "$policy_json"
     run_executor_surface "$executor_surface" "$intent_text"
 }
 
@@ -509,7 +541,7 @@ run_auto() {
     local raw_prompt="$1"
     local command_surface="auto"
     local explicit_command="true"
-    local cleaned_prompt quota_json mode category policy_json executor_surface intent_bundle_json
+    local cleaned_prompt quota_json mode category policy_json executor_surface intent_bundle_json category_contract
     if ! has_all_suffix "$raw_prompt"; then
         printf 'Error: trailing ALL suffix not found.\n' >&2
         return 1
@@ -518,11 +550,13 @@ run_auto() {
     cleaned_prompt="$(strip_all_suffix "$raw_prompt")"
     quota_json="$("$ROOT_DIR/scripts/helpers/provider-quota-status.sh")"
     mode="$(select_mode "$quota_json")"
-    category="$(resolve_category "$cleaned_prompt" "$command_surface" "$explicit_command")"
+    category_contract="$(resolve_category_contract "$cleaned_prompt" "$command_surface" "$explicit_command")"
+    category="$(jq -r '.category' <<<"$category_contract")"
     intent_bundle_json="$(infer_intent_bundle_with_claude "$cleaned_prompt" "$category")"
     intent_bundle_json="$(intent_bundle_with_normalized_categories "$intent_bundle_json")"
 
     printf 'Entry category: %s\n' "$category"
+    printf 'Entry category reason: %s\n' "$(jq -r '.reason' <<<"$category_contract")"
     render_intent_summary "$intent_bundle_json"
 
     while IFS= read -r intent_row; do

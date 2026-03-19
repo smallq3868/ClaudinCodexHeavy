@@ -211,8 +211,8 @@ After installation:
 - Or run `/cch:auto ...`
 - Expect routing summaries to eventually include:
   - selected category
-  - quota truth source
-  - fallback reason when applicable
+  - why that category was selected
+  - provider별 `hourly / weekly` usage
   - higher-order purpose
   - intent count
 
