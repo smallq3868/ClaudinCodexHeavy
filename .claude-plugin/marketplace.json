@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Focused quota-aware orchestration plugin for Claude Code",
-    "version": "0.2.3"
+    "version": "0.2.4"
   },
   "plugins": [
     {
       "name": "cch",
       "source": "./",
       "description": "Cost-first quota-aware orchestration. A trailing ALL suffix enters full orchestration and prefers Codex(gpt-5.4) under high, unknown, or exhausted quota states.",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "author": {
         "name": "smallq3868"
       },

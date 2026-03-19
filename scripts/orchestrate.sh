@@ -83,14 +83,14 @@ has_all_suffix() {
 run_codex() {
     local prompt="$1"
     if [[ "$SKIP_PROVIDER_EXEC" == "1" ]]; then
-        printf '[skipped] codex exec --model %s --sandbox workspace-write --ask-for-approval never %q\n' "$CODEX_MODEL" "$prompt"
+        printf '[skipped] codex exec --model %s --sandbox workspace-write %q\n' "$CODEX_MODEL" "$prompt"
         return 0
     fi
     if ! command -v codex >/dev/null 2>&1; then
         printf '[unavailable] codex CLI not found\n'
         return 0
     fi
-    codex exec --model "$CODEX_MODEL" --sandbox workspace-write --ask-for-approval never "$prompt" 2>&1 || true
+    codex exec --model "$CODEX_MODEL" --sandbox workspace-write "$prompt" 2>&1 || true
 }
 
 run_gemini() {

@@ -1,6 +1,6 @@
 {
   "name": "claudin-codex-heavy",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Cost-first Claude Code plugin that treats a trailing ALL suffix as an opt-in for quota-aware orchestration.",
   "main": "scripts/orchestrate.sh",
   "scripts": {
