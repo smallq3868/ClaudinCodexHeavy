@@ -1,6 +1,6 @@
 {
   "name": "cch",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Cost-first quota-aware orchestration plugin. A trailing ALL suffix opts into full orchestration with Codex(gpt-5.4)-first fallback under high or unknown quota.",
   "author": {
     "name": "smallq3868"

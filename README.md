@@ -208,7 +208,7 @@ claude plugin install cch@claudin-codex-heavy --scope user
 After installation:
 
 - Append `ALL` to the end of a prompt for auto orchestration
-- Or run `/cch:auto ...`
+- Or run `/cch:auto ...` without needing `ALL`
 - Expect routing summaries to eventually include:
   - selected category
   - why that category was selected

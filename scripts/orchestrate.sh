@@ -542,12 +542,16 @@ run_auto() {
     local command_surface="auto"
     local explicit_command="true"
     local cleaned_prompt quota_json mode category policy_json executor_surface intent_bundle_json category_contract
-    if ! has_all_suffix "$raw_prompt"; then
+    if has_all_suffix "$raw_prompt"; then
+        cleaned_prompt="$(strip_all_suffix "$raw_prompt")"
+    else
+        cleaned_prompt="$(trim "$raw_prompt")"
+    fi
+
+    if [[ -z "$cleaned_prompt" ]]; then
         printf 'Error: trailing ALL suffix not found.\n' >&2
         return 1
     fi
-
-    cleaned_prompt="$(strip_all_suffix "$raw_prompt")"
     quota_json="$("$ROOT_DIR/scripts/helpers/provider-quota-status.sh")"
     mode="$(select_mode "$quota_json")"
     category_contract="$(resolve_category_contract "$cleaned_prompt" "$command_surface" "$explicit_command")"
