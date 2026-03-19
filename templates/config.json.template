@@ -2,7 +2,16 @@
   "version": "0.1.0",
   "models": {
     "codex": "gpt-5.4",
-    "gemini": "gemini-3.1-pro-preview"
+    "gemini": "gemini-3.1-pro-preview",
+    "claude_intent": "sonnet"
+  },
+  "intent_inference": {
+    "enabled": true,
+    "max_intents": 3,
+    "authority": "claude",
+    "higher_order_purpose_required": true,
+    "unknown_intent_default_category": "implementation",
+    "confirm_on_ambiguity": false
   },
   "quota_sources": {
     "claude": {

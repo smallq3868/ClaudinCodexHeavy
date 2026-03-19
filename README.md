@@ -9,6 +9,9 @@ Cost-first Claude Code plugin focused on one behavior:
 Phase 1 is intentionally `policy-only`.
 It defines how routing should work by category without importing broad workflow families yet.
 
+Phase 2 adds `Claude-led intent inference`.
+When `ALL` is present, Claude may infer one higher-order purpose and decompose the request into up to 3 ordered intents, then route each intent by category.
+
 ## What It Ships
 
 - One auto-activating skill for trailing `ALL`
@@ -32,6 +35,8 @@ It defines how routing should work by category without importing broad workflow 
   - debate
   - documentation
   - planning
+- Claude can infer one higher-order purpose and split the request into up to 3 intents
+- Each intent must stay inside that single higher-order purpose
 
 ## Phase 1 Category Policy
 
@@ -162,6 +167,35 @@ Resolution rules:
 3. prompt heuristics refine category when command surface is absent or ambiguous
 4. unknown category defaults to `implementation`
 
+## Phase 2 Intent Inference
+
+Phase 2 extends category routing into intent bundles.
+
+Conceptual contract:
+
+```text
+infer_intent_bundle(raw_prompt) -> {
+  higher_order_purpose: string,
+  intents: [
+    { order: number, intent: string, category: category }
+  ],
+  truncated_to_max: boolean,
+  authority: "claude"
+}
+```
+
+Rules:
+
+1. Claude is the intent inference authority
+2. The request may be decomposed into at most 3 intents
+3. All intents must remain inside one Claude-inferred higher-order purpose
+4. The system may reassign work by intent, but may not distort the user's core request
+
+For local testing, the runtime also supports:
+
+- `CCH_INTENT_BUNDLE_JSON`
+- `CCH_DISABLE_CLAUDE_INTENT_INFERENCE=1`
+
 ## Install Into Claude
 
 Add marketplace from local path:
@@ -179,6 +213,8 @@ After installation:
   - selected category
   - quota truth source
   - fallback reason when applicable
+  - higher-order purpose
+  - intent count
 
 ## Validate
 

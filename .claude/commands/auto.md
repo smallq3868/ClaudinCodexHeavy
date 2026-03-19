@@ -1,5 +1,5 @@
 ---
-description: Trigger quota-aware cost-first orchestration manually. Uses the same hard ALL-suffix semantics, hybrid quota truth, category-aware routing, and Codex(gpt-5.4)-first fallback as the automatic skill.
+description: Trigger quota-aware cost-first orchestration manually. Uses the same hard ALL-suffix semantics, hybrid quota truth, Claude-led intent inference, category-aware routing, and Codex(gpt-5.4)-first fallback as the automatic skill.
 ---
 
 # /cch:auto
@@ -20,4 +20,7 @@ cd "${CLAUDE_PLUGIN_ROOT}" && ./scripts/orchestrate.sh auto "<user request>"
    - selected category
    - quota truth source (`live|env|file|unknown`)
    - fallback reason when applicable
-5. Summarize the result for the user.
+   - higher-order purpose
+   - intent count
+5. If intent inference is active, preserve the higher-order purpose across all delegated intent results.
+6. Summarize the result for the user.

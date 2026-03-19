@@ -48,6 +48,22 @@ config_or_default() {
     fi
 }
 
+claude_intent_model() {
+    if [[ -n "${CCH_CLAUDE_INTENT_MODEL:-}" ]]; then
+        printf '%s\n' "$CCH_CLAUDE_INTENT_MODEL"
+    else
+        config_or_default '.models.claude_intent' 'sonnet'
+    fi
+}
+
+json_escape() {
+    if command -v jq >/dev/null 2>&1; then
+        jq -Rn --arg value "$1" '$value'
+    else
+        printf '"%s"' "$1"
+    fi
+}
+
 strip_all_suffix() {
     local prompt
     prompt="$(trim "$1")"
@@ -219,6 +235,102 @@ resolve_category() {
     printf '%s\n' "$category"
 }
 
+intent_default_category() {
+    config_or_default '.intent_inference.unknown_intent_default_category' 'implementation'
+}
+
+max_intents() {
+    config_or_default '.intent_inference.max_intents' '3'
+}
+
+normalize_category() {
+    local category="$1"
+    case "$category" in
+        implementation|research|verification|security|debate|documentation|planning)
+            printf '%s\n' "$category"
+            ;;
+        *)
+            intent_default_category
+            ;;
+    esac
+}
+
+mock_intent_bundle() {
+    local prompt="$1"
+    local category="$2"
+    local max_count
+    max_count="$(max_intents)"
+    cat <<EOF
+{
+  "higher_order_purpose": $(json_escape "$prompt"),
+  "intents": [
+    {
+      "order": 1,
+      "intent": $(json_escape "$prompt"),
+      "category": $(json_escape "$category")
+    }
+  ],
+  "truncated_to_max": false,
+  "authority": "claude"
+}
+EOF
+}
+
+infer_intent_bundle_with_claude() {
+    local prompt="$1"
+    local fallback_category="$2"
+    local max_count schema output
+    max_count="$(max_intents)"
+    schema='{"type":"object","properties":{"higher_order_purpose":{"type":"string"},"intents":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"order":{"type":"integer"},"intent":{"type":"string"},"category":{"type":"string","enum":["implementation","research","verification","security","debate","documentation","planning"]}},"required":["order","intent","category"],"additionalProperties":false}},"truncated_to_max":{"type":"boolean"},"authority":{"type":"string"}},"required":["higher_order_purpose","intents","truncated_to_max","authority"],"additionalProperties":false}'
+
+    if [[ -n "${CCH_INTENT_BUNDLE_JSON:-}" ]]; then
+        printf '%s\n' "$CCH_INTENT_BUNDLE_JSON"
+        return 0
+    fi
+
+    if [[ "${CCH_DISABLE_CLAUDE_INTENT_INFERENCE:-0}" == "1" ]]; then
+        mock_intent_bundle "$prompt" "$fallback_category"
+        return 0
+    fi
+
+    if ! command -v claude >/dev/null 2>&1; then
+        mock_intent_bundle "$prompt" "$fallback_category"
+        return 0
+    fi
+
+    output="$(
+        claude --print \
+            --output-format json \
+            --json-schema "$schema" \
+            --model "$(claude_intent_model)" \
+            "Infer one higher-order purpose for this request, then decompose it into at most ${max_count} ordered intents. Preserve the user's actual meaning. Do not go beyond one inferred higher-order purpose. Return only valid JSON. Request: ${prompt}" \
+            2>/dev/null || true
+    )"
+
+    if [[ -n "$output" ]] && jq -e '.higher_order_purpose and (.intents | length >= 1)' >/dev/null 2>&1 <<<"$output"; then
+        printf '%s\n' "$output"
+    else
+        mock_intent_bundle "$prompt" "$fallback_category"
+    fi
+}
+
+intent_bundle_with_normalized_categories() {
+    local bundle_json="$1"
+    jq --arg default_category "$(intent_default_category)" '
+      .authority = (.authority // "claude")
+      | .intents = (
+          .intents
+          | sort_by(.order)
+          | map(.category = (
+              if (.category == "implementation" or .category == "research" or .category == "verification" or .category == "security" or .category == "debate" or .category == "documentation" or .category == "planning")
+              then .category
+              else $default_category
+              end
+            ))
+        )
+    ' <<<"$bundle_json"
+}
+
 resolve_executor_surface() {
     local category="$1"
     local policy_json="$2"
@@ -340,6 +452,14 @@ render_summary() {
     printf 'Quota: %s\n' "$quota_json"
 }
 
+render_intent_summary() {
+    local bundle_json="$1"
+    printf 'Higher-order purpose: %s\n' "$(jq -r '.higher_order_purpose' <<<"$bundle_json")"
+    printf 'Intent authority: %s\n' "$(jq -r '.authority' <<<"$bundle_json")"
+    printf 'Intent count: %s\n' "$(jq -r '.intents | length' <<<"$bundle_json")"
+    printf 'Intent bundle: %s\n' "$bundle_json"
+}
+
 run_executor_surface() {
     local executor_surface="$1"
     local prompt="$2"
@@ -369,11 +489,27 @@ run_executor_surface() {
     esac
 }
 
+run_intent() {
+    local mode="$1"
+    local quota_json="$2"
+    local intent_json="$3"
+    local category intent_text policy_json executor_surface
+
+    category="$(jq -r '.category' <<<"$intent_json")"
+    intent_text="$(jq -r '.intent' <<<"$intent_json")"
+    policy_json="$(category_policy "$category")"
+    executor_surface="$(resolve_executor_surface "$category" "$policy_json" "$quota_json" "$mode")"
+
+    printf '\n--- Intent %s ---\n' "$(jq -r '.order' <<<"$intent_json")"
+    render_summary "$mode" "$category" "$executor_surface" "$intent_text" "$quota_json" "$policy_json"
+    run_executor_surface "$executor_surface" "$intent_text"
+}
+
 run_auto() {
     local raw_prompt="$1"
     local command_surface="auto"
     local explicit_command="true"
-    local cleaned_prompt quota_json mode category policy_json executor_surface
+    local cleaned_prompt quota_json mode category policy_json executor_surface intent_bundle_json
     if ! has_all_suffix "$raw_prompt"; then
         printf 'Error: trailing ALL suffix not found.\n' >&2
         return 1
@@ -383,28 +519,23 @@ run_auto() {
     quota_json="$("$ROOT_DIR/scripts/helpers/provider-quota-status.sh")"
     mode="$(select_mode "$quota_json")"
     category="$(resolve_category "$cleaned_prompt" "$command_surface" "$explicit_command")"
-    policy_json="$(category_policy "$category")"
-    executor_surface="$(resolve_executor_surface "$category" "$policy_json" "$quota_json" "$mode")"
+    intent_bundle_json="$(infer_intent_bundle_with_claude "$cleaned_prompt" "$category")"
+    intent_bundle_json="$(intent_bundle_with_normalized_categories "$intent_bundle_json")"
 
-    render_summary "$mode" "$category" "$executor_surface" "$cleaned_prompt" "$quota_json" "$policy_json"
-    run_executor_surface "$executor_surface" "$cleaned_prompt"
+    printf 'Entry category: %s\n' "$category"
+    render_intent_summary "$intent_bundle_json"
+
+    while IFS= read -r intent_row; do
+        [[ -n "$intent_row" ]] || continue
+        run_intent "$mode" "$quota_json" "$intent_row"
+    done < <(jq -c '.intents[]' <<<"$intent_bundle_json")
 
     printf '\n=== Orchestration Note ===\n'
-    case "$executor_surface" in
-        codex+gemini)
-            printf 'Claude should moderate and synthesize the Codex and Gemini outputs for the final response.\n'
-            ;;
-        claude)
-            printf 'Claude remains the in-session executor for this category while preserving the hard ALL policy.\n'
-            ;;
-        *)
-            if [[ "$mode" == "codex-only" ]]; then
-                printf 'Codex-only degraded mode is active.\n'
-            else
-                printf 'Apply the category policy and current quota state when forming the final response.\n'
-            fi
-            ;;
-    esac
+    if [[ "$mode" == "codex-only" ]]; then
+        printf 'Codex-only degraded mode is active, but the intent bundle still stays within one higher-order purpose.\n'
+    else
+        printf 'Claude should preserve the higher-order purpose and synthesize all intent results into one final response.\n'
+    fi
 }
 
 usage() {
