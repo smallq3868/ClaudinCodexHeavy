@@ -1,0 +1,6 @@
+{
+  "CCH_CODEX_MODEL": "gpt-5.4",
+  "CCH_GEMINI_MODEL": "gemini-3.1-pro-preview",
+  "CCH_QUOTA_POLICY": "cost-first"
+}
+

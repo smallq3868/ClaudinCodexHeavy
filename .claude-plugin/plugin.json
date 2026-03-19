@@ -1,0 +1,26 @@
+{
+  "name": "cch",
+  "version": "0.1.0",
+  "description": "Cost-first quota-aware orchestration plugin. A trailing ALL suffix opts into full orchestration with Codex(gpt-5.4)-first fallback under high or unknown quota.",
+  "author": {
+    "name": "smallq3868"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/smallq3868/ClaudinCodexHeavy",
+  "homepage": "https://github.com/smallq3868/ClaudinCodexHeavy#readme",
+  "keywords": [
+    "claude-code",
+    "quota-aware",
+    "cost-first",
+    "codex",
+    "gemini",
+    "orchestration"
+  ],
+  "skills": [
+    "./.claude/skills/all-suffix-orchestrator.md"
+  ],
+  "commands": [
+    "./.claude/commands/auto.md"
+  ]
+}
+

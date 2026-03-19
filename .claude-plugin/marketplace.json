@@ -1,0 +1,32 @@
+{
+  "name": "claudin-codex-heavy",
+  "owner": {
+    "name": "smallq3868"
+  },
+  "metadata": {
+    "description": "Focused quota-aware orchestration plugin for Claude Code",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "cch",
+      "source": "./",
+      "description": "Cost-first quota-aware orchestration. A trailing ALL suffix enters full orchestration and prefers Codex(gpt-5.4) under high, unknown, or exhausted quota states.",
+      "version": "0.1.0",
+      "author": {
+        "name": "smallq3868"
+      },
+      "repository": "https://github.com/smallq3868/ClaudinCodexHeavy",
+      "license": "MIT",
+      "keywords": [
+        "quota-aware",
+        "cost-first",
+        "codex",
+        "gemini",
+        "orchestration"
+      ],
+      "category": "orchestration"
+    }
+  ]
+}
+

@@ -1,0 +1,36 @@
+{
+  "name": "claudin-codex-heavy",
+  "version": "0.1.0",
+  "description": "Cost-first Claude Code plugin that treats a trailing ALL suffix as an opt-in for quota-aware orchestration.",
+  "main": "scripts/orchestrate.sh",
+  "scripts": {
+    "test": "make test",
+    "validate": "claude plugin validate .claude-plugin/plugin.json"
+  },
+  "files": [
+    "scripts/",
+    "tests/",
+    "templates/",
+    ".claude/",
+    ".claude-plugin/",
+    "README.md",
+    "LICENSE",
+    "Makefile"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:smallq3868/ClaudinCodexHeavy.git"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "quota-aware",
+    "codex",
+    "gemini",
+    "cost-first",
+    "orchestration"
+  ],
+  "author": "smallq3868",
+  "license": "MIT"
+}
+

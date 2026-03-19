@@ -1,0 +1,35 @@
+{
+  "version": "0.1.0",
+  "models": {
+    "codex": "gpt-5.4",
+    "gemini": "gemini-3.1-pro-preview"
+  },
+  "thresholds": {
+    "claude": {
+      "hourly_warn": 60,
+      "weekly_warn": 80,
+      "hourly_exhausted": 95,
+      "weekly_exhausted": 95
+    },
+    "gemini": {
+      "hourly_warn": 60,
+      "weekly_warn": 80,
+      "hourly_exhausted": 95,
+      "weekly_exhausted": 95
+    }
+  },
+  "quota_state_file": "~/.claude/plugins/data/cch-claudin-codex-heavy/quota-state.json",
+  "modes": {
+    "normal": {
+      "providers": ["codex", "gemini", "claude"]
+    },
+    "codex-heavy": {
+      "providers": ["codex", "gemini", "claude"],
+      "codex_bias": true
+    },
+    "codex-only": {
+      "providers": ["codex"]
+    }
+  }
+}
+
