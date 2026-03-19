@@ -1,5 +1,5 @@
 ---
-description: Trigger quota-aware cost-first orchestration manually. Uses the same ALL-suffix semantics and Codex(gpt-5.4)-first fallback as the automatic skill.
+description: Trigger quota-aware cost-first orchestration manually. Uses the same hard ALL-suffix semantics, hybrid quota truth, category-aware routing, and Codex(gpt-5.4)-first fallback as the automatic skill.
 ---
 
 # /cch:auto
@@ -16,5 +16,8 @@ cd "${CLAUDE_PLUGIN_ROOT}" && ./scripts/orchestrate.sh auto "<user request>"
 ```
 
 3. Show the routing summary before any provider output.
-4. Summarize the result for the user.
-
+4. In the summary, surface:
+   - selected category
+   - quota truth source (`live|env|file|unknown`)
+   - fallback reason when applicable
+5. Summarize the result for the user.

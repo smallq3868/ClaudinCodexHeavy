@@ -6,6 +6,9 @@ Cost-first Claude Code plugin focused on one behavior:
 - Prefer `Codex(gpt-5.4)` when Claude/Gemini quota is high, unknown, or exhausted.
 - Fall back conservatively instead of blocking execution.
 
+Phase 1 is intentionally `policy-only`.
+It defines how routing should work by category without importing broad workflow families yet.
+
 ## What It Ships
 
 - One auto-activating skill for trailing `ALL`
@@ -16,10 +19,61 @@ Cost-first Claude Code plugin focused on one behavior:
 ## v1 Behavior
 
 - `ALL` at the end of a prompt triggers quota-aware orchestration
+- `ALL` precedence is a hard policy, not a config option
 - Unknown quota state uses `Codex(gpt-5.4)` first
 - Gemini exhaustion hands work to GPT/Codex
 - Claude exhaustion degrades to Codex-only mode
 - Gemini detection is best-effort in v1
+- Category routing is explicit for:
+  - implementation
+  - research
+  - verification
+  - security
+  - debate
+  - documentation
+  - planning
+
+## Phase 1 Category Policy
+
+The phase-1 policy table is meant to be stored in config, not hardcoded only in shell logic.
+
+Target category defaults:
+
+- `implementation`
+  - leader: `claude`
+  - executor: `codex:gpt-5.4`
+  - fallback: `codex:gpt-5.4`
+  - quota bias: `codex-first`
+- `research`
+  - leader: `gemini`
+  - executor: `gemini:default`
+  - fallback: `codex:gpt-5.4`
+  - quota bias: `gemini-first`
+- `verification`
+  - leader: `claude`
+  - executor: `codex:gpt-5.4`
+  - fallback: `codex:gpt-5.4`
+  - quota bias: `codex-first`
+- `security`
+  - leader: `claude`
+  - executor: `codex:gpt-5.4`
+  - fallback: `gemini:default`
+  - quota bias: `codex-first`
+- `debate`
+  - leader: `claude`
+  - executor: `codex+gemini`
+  - fallback: `codex:gpt-5.4`
+  - quota bias: `balanced`
+- `documentation`
+  - leader: `claude`
+  - executor: `claude`
+  - fallback: `codex:gpt-5.4`
+  - quota bias: `claude-first`
+- `planning`
+  - leader: `claude`
+  - executor: `claude`
+  - fallback: `codex:gpt-5.4`
+  - quota bias: `claude-first`
 
 ## Configuration
 
@@ -35,6 +89,20 @@ Quota state lookup order:
 1. `CCH_QUOTA_STATE_FILE`
 2. `quota_state_file` in config
 3. `~/.claude/plugins/data/cch-claudin-codex-heavy/quota-state.json`
+
+Hybrid quota truth contract:
+
+- prefer `live` provider status when available
+- otherwise fall back to `env` or `file`
+- if nothing is available, report `unknown`
+
+Target helper fields:
+
+- `live_attempted`
+- `source` = `live|env|file|unknown`
+- `fallback_reason`
+- `high`
+- `exhausted`
 
 ### Example quota-state file
 
@@ -65,6 +133,35 @@ Environment variables can override file values:
 - `CCH_GEMINI_EXHAUSTED`
 - `CCH_SKIP_PROVIDER_EXEC=1` to skip external Codex/Gemini calls
 
+## Category Resolution Contract
+
+Phase 1 should expose one explicit runtime category-resolution path with this conceptual interface:
+
+```text
+resolve_category(
+  raw_prompt: string,
+  command_surface: string,
+  explicit_command: boolean
+) -> category
+```
+
+Accepted categories:
+
+- `implementation`
+- `research`
+- `verification`
+- `security`
+- `debate`
+- `documentation`
+- `planning`
+
+Resolution rules:
+
+1. hard `ALL` policy applies before configurable routing
+2. explicit command surface may influence category choice
+3. prompt heuristics refine category when command surface is absent or ambiguous
+4. unknown category defaults to `implementation`
+
 ## Install Into Claude
 
 Add marketplace from local path:
@@ -78,6 +175,10 @@ After installation:
 
 - Append `ALL` to the end of a prompt for auto orchestration
 - Or run `/cch:auto ...`
+- Expect routing summaries to eventually include:
+  - selected category
+  - quota truth source
+  - fallback reason when applicable
 
 ## Validate
 
@@ -85,4 +186,3 @@ After installation:
 make test
 claude plugin validate .claude-plugin/plugin.json
 ```
-

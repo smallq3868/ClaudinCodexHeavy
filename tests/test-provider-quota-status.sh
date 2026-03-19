@@ -9,10 +9,13 @@ echo "test-provider-quota-status"
 out="$(CCH_CLAUDE_HOURLY_USED=82 CCH_GEMINI_WEEKLY_USED=96 "$SCRIPT")"
 echo "$out" | jq -e '.claude.high == true' >/dev/null
 echo "$out" | jq -e '.gemini.exhausted == true' >/dev/null
+echo "$out" | jq -e '.claude.source == "env"' >/dev/null
+echo "$out" | jq -e '.claude.live_attempted == false or .claude.live_attempted == true' >/dev/null
 
 out="$("$SCRIPT")"
 echo "$out" | jq -e '.claude.unknown == true' >/dev/null
 echo "$out" | jq -e '.gemini.unknown == true' >/dev/null
+echo "$out" | jq -e '.claude.source == "unknown"' >/dev/null
+echo "$out" | jq -e '.claude.fallback_reason != null' >/dev/null
 
 echo "ok"
-

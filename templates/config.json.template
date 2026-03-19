@@ -4,6 +4,20 @@
     "codex": "gpt-5.4",
     "gemini": "gemini-3.1-pro-preview"
   },
+  "quota_sources": {
+    "claude": {
+      "mode": "hybrid",
+      "live_enabled": true,
+      "live_state_file": "~/.claude/plugins/data/cch-claudin-codex-heavy/live-quota-state.json",
+      "state_file": "~/.claude/plugins/data/cch-claudin-codex-heavy/quota-state.json"
+    },
+    "gemini": {
+      "mode": "hybrid",
+      "live_enabled": true,
+      "live_state_file": "~/.claude/plugins/data/cch-claudin-codex-heavy/live-quota-state.json",
+      "state_file": "~/.claude/plugins/data/cch-claudin-codex-heavy/quota-state.json"
+    }
+  },
   "thresholds": {
     "claude": {
       "hourly_warn": 60,
@@ -19,6 +33,51 @@
     }
   },
   "quota_state_file": "~/.claude/plugins/data/cch-claudin-codex-heavy/quota-state.json",
+  "default_category": "implementation",
+  "categories": {
+    "implementation": {
+      "leader": "claude",
+      "executor": "codex:gpt-5.4",
+      "fallback": "codex:gpt-5.4",
+      "quota_bias": "codex-first"
+    },
+    "research": {
+      "leader": "gemini",
+      "executor": "gemini:default",
+      "fallback": "codex:gpt-5.4",
+      "quota_bias": "gemini-first"
+    },
+    "verification": {
+      "leader": "claude",
+      "executor": "codex:gpt-5.4",
+      "fallback": "codex:gpt-5.4",
+      "quota_bias": "codex-first"
+    },
+    "security": {
+      "leader": "claude",
+      "executor": "codex:gpt-5.4",
+      "fallback": "gemini:default",
+      "quota_bias": "codex-first"
+    },
+    "debate": {
+      "leader": "claude",
+      "executor": "codex+gemini",
+      "fallback": "codex:gpt-5.4",
+      "quota_bias": "balanced"
+    },
+    "documentation": {
+      "leader": "claude",
+      "executor": "claude",
+      "fallback": "codex:gpt-5.4",
+      "quota_bias": "claude-first"
+    },
+    "planning": {
+      "leader": "claude",
+      "executor": "claude",
+      "fallback": "codex:gpt-5.4",
+      "quota_bias": "claude-first"
+    }
+  },
   "modes": {
     "normal": {
       "providers": ["codex", "gemini", "claude"]
@@ -32,4 +91,3 @@
     }
   }
 }
-
