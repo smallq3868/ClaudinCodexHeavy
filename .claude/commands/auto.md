@@ -17,7 +17,7 @@ Important:
 2. Run:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}" && ./scripts/orchestrate.sh auto "<user request>"
+CCH_TARGET_CWD="$PWD" "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.sh" auto "<user request>"
 ```
 
 3. Do not reject the command if the prompt body does not end with `ALL`.

@@ -216,6 +216,10 @@ After installation:
   - higher-order purpose
   - intent count
 
+Important runtime detail:
+- the plugin now preserves the caller's current working directory when invoking Codex or Gemini
+- this is required for real project-relative analysis such as `@path/to/file.py`
+
 ## Validate
 
 ```bash

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_CONFIG="${HOME}/.claude/plugins/data/cch-claudin-codex-heavy/config.json"
 CONFIG_PATH="${CCH_CONFIG:-$DEFAULT_CONFIG}"
+TARGET_CWD="${CCH_TARGET_CWD:-$PWD}"
 CODEX_MODEL="${CCH_CODEX_MODEL:-gpt-5.4}"
 GEMINI_MODEL="${CCH_GEMINI_MODEL:-gemini-3.1-pro-preview}"
 SKIP_PROVIDER_EXEC="${CCH_SKIP_PROVIDER_EXEC:-0}"
@@ -83,27 +84,30 @@ has_all_suffix() {
 run_codex() {
     local prompt="$1"
     if [[ "$SKIP_PROVIDER_EXEC" == "1" ]]; then
-        printf '[skipped] codex exec --model %s --sandbox workspace-write %q\n' "$CODEX_MODEL" "$prompt"
+        printf '[skipped] codex exec -C %s --model %s --sandbox workspace-write %q\n' "$TARGET_CWD" "$CODEX_MODEL" "$prompt"
         return 0
     fi
     if ! command -v codex >/dev/null 2>&1; then
         printf '[unavailable] codex CLI not found\n'
         return 0
     fi
-    codex exec --model "$CODEX_MODEL" --sandbox workspace-write "$prompt" 2>&1 || true
+    codex exec -C "$TARGET_CWD" --model "$CODEX_MODEL" --sandbox workspace-write "$prompt" 2>&1 || true
 }
 
 run_gemini() {
     local prompt="$1"
     if [[ "$SKIP_PROVIDER_EXEC" == "1" ]]; then
-        printf '[skipped] gemini -o text --approval-mode yolo -m %s <prompt>\n' "$GEMINI_MODEL"
+        printf '[skipped] (cd %s && gemini -o text --approval-mode yolo -m %s <prompt>)\n' "$TARGET_CWD" "$GEMINI_MODEL"
         return 0
     fi
     if ! command -v gemini >/dev/null 2>&1; then
         printf '[unavailable] gemini CLI not found\n'
         return 0
     fi
-    printf '%s' "$prompt" | env NODE_NO_WARNINGS=1 gemini -o text --approval-mode yolo -m "$GEMINI_MODEL" 2>&1 || true
+    (
+        cd "$TARGET_CWD" &&
+        printf '%s' "$prompt" | env NODE_NO_WARNINGS=1 gemini -o text --approval-mode yolo -m "$GEMINI_MODEL"
+    ) 2>&1 || true
 }
 
 select_mode() {

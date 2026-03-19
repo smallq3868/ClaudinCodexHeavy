@@ -12,7 +12,7 @@ When the user's message ends with `ALL`, treat that suffix as an explicit opt-in
 2. Run:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}" && ./scripts/orchestrate.sh auto "<raw user message>"
+CCH_TARGET_CWD="$PWD" "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.sh" auto "<raw user message>"
 ```
 
 3. Let the script strip the trailing `ALL`.
